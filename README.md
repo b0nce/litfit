@@ -1,5 +1,10 @@
 # litfit
 
+[![CI](https://github.com/b0nce/litfit/actions/workflows/ci.yml/badge.svg)](https://github.com/b0nce/litfit/actions/workflows/ci.yml)
+[![PyPI](https://img.shields.io/pypi/v/litfit)](https://pypi.org/project/litfit/)
+[![Python](https://img.shields.io/pypi/pyversions/litfit)](https://pypi.org/project/litfit/)
+[![License](https://img.shields.io/github/license/b0nce/litfit)](LICENSE)
+
 **litfit** /lɪt fɪt/ — the shortest path from someone else's embedding to your task.
 
 ## Installation
