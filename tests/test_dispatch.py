@@ -4,8 +4,8 @@ import pytest
 import torch
 
 from litfit.device import DEVICE, DTYPE
-from litfit.dispatch import LazyProjectionDict, generate_fast_projections
-from litfit.stats import compute_stats
+from litfit.dispatch import LazyProjectionDict, generate_all_projections, generate_fast_projections
+from litfit.stats import compute_all_stats, compute_stats
 
 
 @pytest.fixture
@@ -18,6 +18,18 @@ def make_st():
     ids = list(range(n))
     id_to_group = {i: i // (n // 4) for i in range(n)}  # 4 groups
     return compute_stats(embs, ids, id_to_group)
+
+
+@pytest.fixture
+def make_st_neg():
+    """Create stats with negative pairs."""
+    torch.manual_seed(42)
+    n = 20
+    d = 8
+    embs = torch.randn(n, d, device=DEVICE, dtype=DTYPE)
+    ids = list(range(n))
+    id_to_group = {i: i // (n // 4) for i in range(n)}
+    return compute_all_stats(embs, ids, id_to_group)
 
 
 class TestLazyProjectionDict:
@@ -143,3 +155,80 @@ class TestGenerateFastProjections:
         count_with_neg = len(result_with_neg)
 
         assert count_with_neg > count_no_neg
+
+
+class TestGenerateAllProjections:
+    """Test generate_all_projections function."""
+
+    def test_returns_dict(self, make_st):
+        result = generate_all_projections(make_st, verbose=False)
+        assert isinstance(result, dict)
+        assert len(result) > 0
+
+    def test_returns_lazy_dict(self, make_st):
+        result = generate_all_projections(make_st, lazy=True, verbose=False)
+        assert isinstance(result, LazyProjectionDict)
+        assert len(result) > 0
+
+    def test_more_configs_than_fast(self, make_st):
+        fast = generate_fast_projections(make_st, lazy=True, verbose=False)
+        full = generate_all_projections(make_st, lazy=True, verbose=False)
+        assert len(full) > len(fast)
+
+    def test_with_neg(self, make_st_neg):
+        st, neg = make_st_neg
+        result_no_neg = generate_all_projections(st, neg=None, verbose=False)
+        result_with_neg = generate_all_projections(st, neg=neg, verbose=False)
+        assert len(result_with_neg) > len(result_no_neg)
+
+    def test_include_neg_methods_false(self, make_st_neg):
+        st, neg = make_st_neg
+        result = generate_all_projections(st, neg=neg, include_neg_methods=False, verbose=False)
+        # Should not include contrastive/neg method keys
+        method_names = {k[0] for k in result.keys()}
+        neg_methods = {'RayContr→MSE', 'RayContr→MSE+neg', 'ResidGuided', 'Uber+neg', 'Uber_contr'}
+        assert not method_names & neg_methods
+
+    def test_projection_shapes(self, make_st):
+        result = generate_all_projections(make_st, verbose=False)
+        for key, W in list(result.items())[:5]:  # spot check first 5
+            assert W.shape[0] == 8  # d=8
+            assert torch.isfinite(W).all(), f"{key} has NaN/Inf"
+
+    def test_keys_are_tuples(self, make_st):
+        result = generate_all_projections(make_st, verbose=False)
+        for key in result:
+            assert isinstance(key, tuple)
+            assert len(key) >= 1
+            assert isinstance(key[0], str)  # method name
+
+
+class TestLazyProjectionDictValues:
+    """Test LazyProjectionDict values() and items() iteration."""
+
+    def test_values_iteration(self):
+        lpd = LazyProjectionDict()
+        W = torch.randn(4, 4, device=DEVICE, dtype=DTYPE)
+        lpd._set(('test',), lambda **kw: W, {}, None, {})
+        vals = list(lpd.values())
+        assert len(vals) == 1
+        assert torch.allclose(vals[0], W)
+
+    def test_items_iteration(self):
+        lpd = LazyProjectionDict()
+        W = torch.randn(4, 4, device=DEVICE, dtype=DTYPE)
+        key = ('test', 'r=1')
+        lpd._set(key, lambda **kw: W, {}, None, {})
+        items = list(lpd.items())
+        assert len(items) == 1
+        assert items[0][0] == key
+        assert torch.allclose(items[0][1], W)
+
+    def test_tuple_return_extracts_W(self):
+        """When fn returns (W, bias), LazyProjectionDict should return only W."""
+        lpd = LazyProjectionDict()
+        W = torch.randn(4, 4, device=DEVICE, dtype=DTYPE)
+        bias = torch.randn(4, device=DEVICE, dtype=DTYPE)
+        lpd._set(('uber',), lambda **kw: (W, bias), {}, None, {})
+        result = lpd[('uber',)]
+        assert torch.allclose(result, W)

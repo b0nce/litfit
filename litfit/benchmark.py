@@ -1,5 +1,8 @@
 import time
 import warnings
+from typing import Any, cast
+
+import torch
 
 from .datasets import encode_texts, load_askubuntu, split_data
 from .device import DEVICE
@@ -96,7 +99,9 @@ def run_benchmark(
 
             print("\n  Generating projections...")
             t0 = time.time()
-            all_W = generate_all_projections(st, neg, include_neg_methods=include_neg)
+            all_W: dict[Any, torch.Tensor] = cast(
+                dict, generate_all_projections(st, neg, include_neg_methods=include_neg)
+            )
             print(f"    Generated in {time.time()-t0:.1f}s")
 
             print(f"\n  Evaluating ({len(all_W)} projections)...")
@@ -137,12 +142,12 @@ def _print_top_configs(
     all_W: dict,
     bl_val: dict,
     bl_test: dict,
-    test_embs,
+    test_embs: torch.Tensor,
     test_ids: list,
     id_to_group: dict,
     metric: str = 'MAP@50',
     top_k: int = 10,
-):
+) -> None:
     """Print the top projection configs with improvement over baseline."""
     from .device import to_torch
     from .evaluation import evaluate_retrieval_fast

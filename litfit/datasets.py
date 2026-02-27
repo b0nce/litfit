@@ -1,6 +1,6 @@
 import random
 from collections import defaultdict
-from typing import Any, Dict, List, Tuple
+from typing import Any
 
 import torch
 
@@ -19,7 +19,7 @@ class UnionFind:
     """Path-compressed union-find for grouping duplicate texts by shared positive pairs."""
 
     def __init__(self) -> None:
-        self.parent: Dict[Any, Any] = {}
+        self.parent: dict[Any, Any] = {}
 
     def find(self, x: Any) -> Any:
         while self.parent.get(x, x) != x:
@@ -34,13 +34,13 @@ class UnionFind:
 
 
 def _subsample_groups(
-    groups: Dict[Any, List],
-    id_to_text: Dict[Any, str],
+    groups: dict[Any, list],
+    id_to_text: dict[Any, str],
     max_groups: int,
     max_per_group: int,
     seed: int,
     label: str,
-) -> Tuple[List, List[str], Dict]:
+) -> tuple[list, list[str], dict]:
     rng = random.Random(seed)
     group_ids = list(groups.keys())
     rng.shuffle(group_ids)
@@ -61,7 +61,7 @@ def load_askubuntu(
     max_groups: int = 2000,
     max_per_group: int = 6,
     seed: int = 42,
-) -> Tuple[List, List[str], Dict]:
+) -> tuple[list, list[str], dict]:
     """AskUbuntu duplicate questions -- clear group structure."""
     if not _OPTIONAL_DEPS_AVAILABLE:
         raise ImportError("Install optional dependencies: pip install sentence-transformers datasets")
@@ -94,10 +94,10 @@ def load_askubuntu(
             id_to_text[pid] = pos_text
             uf.union(qid, pid)
 
-    groups = defaultdict(set)
+    groups_set: defaultdict[Any, set[str]] = defaultdict(set)
     for qid in id_to_text:
-        groups[uf.find(qid)].add(qid)
-    groups = {k: list(v) for k, v in groups.items() if len(v) >= 2}
+        groups_set[uf.find(qid)].add(qid)
+    groups = {k: list(v) for k, v in groups_set.items() if len(v) >= 2}
 
     return _subsample_groups(groups, id_to_text, max_groups, max_per_group, seed, "AskUbuntu")
 
@@ -106,7 +106,7 @@ def load_twitter_url(
     max_groups: int = 2000,
     max_per_group: int = 6,
     seed: int = 42,
-) -> Tuple[List, List[str], Dict]:
+) -> tuple[list, list[str], dict]:
     """Twitter URL paraphrase -- tweet pairs about same URL."""
     if not _OPTIONAL_DEPS_AVAILABLE:
         raise ImportError("Install optional dependencies: pip install sentence-transformers datasets")
@@ -128,10 +128,10 @@ def load_twitter_url(
         uf.union(texts_seen[s1], texts_seen[s2])
 
     id_to_text = {v: k for k, v in texts_seen.items()}
-    groups = defaultdict(set)
+    groups_set: defaultdict[Any, set[str]] = defaultdict(set)
     for qid in id_to_text:
-        groups[uf.find(qid)].add(qid)
-    groups = {k: list(v) for k, v in groups.items() if len(v) >= 2}
+        groups_set[uf.find(qid)].add(qid)
+    groups = {k: list(v) for k, v in groups_set.items() if len(v) >= 2}
 
     return _subsample_groups(groups, id_to_text, max_groups, max_per_group, seed, "TwitterURL")
 
@@ -140,7 +140,7 @@ def load_quora(
     max_groups: int = 2000,
     max_per_group: int = 6,
     seed: int = 42,
-) -> Tuple[List, List[str], Dict]:
+) -> tuple[list, list[str], dict]:
     """Quora duplicate questions."""
     if not _OPTIONAL_DEPS_AVAILABLE:
         raise ImportError("Install optional dependencies: pip install sentence-transformers datasets")
@@ -157,17 +157,17 @@ def load_quora(
         if row['is_duplicate']:
             uf.union(q1_id, q2_id)
 
-    groups = defaultdict(set)
+    groups_set: defaultdict[Any, set[Any]] = defaultdict(set)
     for qid in id_to_text:
-        groups[uf.find(qid)].add(qid)
-    groups = {k: list(v) for k, v in groups.items() if len(v) >= 2}
+        groups_set[uf.find(qid)].add(qid)
+    groups = {k: list(v) for k, v in groups_set.items() if len(v) >= 2}
 
     return _subsample_groups(groups, id_to_text, max_groups, max_per_group, seed, "Quora")
 
 
 def encode_texts(
     model_name: str,
-    texts: List[str],
+    texts: list[str],
     batch_size: int = 64,
 ) -> torch.Tensor:
     """Encode texts with a sentence-transformers model, return as torch tensor on device."""
@@ -180,14 +180,14 @@ def encode_texts(
 
 
 def split_data(
-    all_ids: List,
-    all_texts: List[str],
+    all_ids: list,
+    all_texts: list[str],
     embs: torch.Tensor,
-    id_to_group: Dict,
+    id_to_group: dict,
     train_frac: float = 0.6,
     val_frac: float = 0.2,
     seed: int = 42,
-) -> Dict[str, Tuple]:
+) -> dict[str, tuple]:
     """Group-aware split into train/val/test.
 
     Returns:

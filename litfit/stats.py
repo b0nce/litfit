@@ -1,6 +1,7 @@
 import warnings
 from collections import defaultdict
-from typing import Any, Dict, Iterable, Optional, Tuple
+from collections.abc import Iterable
+from typing import Any
 
 import torch
 
@@ -9,7 +10,7 @@ from .device import DEVICE, DTYPE, _normalize, to_torch
 
 def _try_triton_stats(
     Xc: torch.Tensor, Yc: torch.Tensor, n: int
-) -> Optional[Tuple[torch.Tensor, torch.Tensor, torch.Tensor]]:
+) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor] | None:
     """Try fused Triton kernel for covariance computation. Returns (SXX, SYY, SXY) or None if unavailable or on CPU."""
     if DEVICE.type != "cuda" or n < 2**18:
         # `n < 2 ** 18` avoids triton compilation overhead for small datasets
@@ -38,13 +39,13 @@ _REQUIRED_KEYS = {'Sigma_XX', 'Sigma_YY', 'Sigma_XY', 'Sigma_total', 'Sigma_cros
 _REQUIRED_NEG_KEYS = {'Sigma_cross_neg'}
 
 
-def _check_st(st: Dict) -> None:
+def _check_st(st: dict) -> None:
     """Validate that st contains all required statistics keys."""
     if not _REQUIRED_KEYS.issubset(st.keys()):
         raise ValueError(f"Missing keys: {_REQUIRED_KEYS - st.keys()}")
 
 
-def _check_neg(neg: Optional[Dict]) -> None:
+def _check_neg(neg: dict | None) -> None:
     """Validate that neg is provided and contains required keys."""
     if neg is None:
         raise ValueError("This method requires negative pair statistics")
@@ -57,7 +58,7 @@ def compute_stats(
     ids: list,
     id_to_group: dict,
     symmetrize: bool = True,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Compute all sufficient statistics from embeddings and group labels."""
     embs_t = to_torch(embs)
 
@@ -104,38 +105,40 @@ def compute_stats(
 
 def _needs_fp64(n: int, dtype: torch.dtype) -> bool:
     """Return True if 1/n underflows to 0 in the given dtype."""
-    return torch.tensor(1.0, dtype=dtype) / torch.tensor(float(n), dtype=dtype) == 0.0
+    return bool(torch.tensor(1.0, dtype=dtype) / torch.tensor(float(n), dtype=dtype) == 0.0)
 
 
 def compute_stats_streaming(
-    pair_iterator: Iterable[Tuple[torch.Tensor, torch.Tensor]],
+    pair_iterator: Iterable[tuple[torch.Tensor, torch.Tensor]],
     symmetrize: bool = True,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Compute sufficient statistics incrementally from an iterator of (X_batch, Y_batch) pairs.
 
     Accumulates raw sums in DTYPE (typically float32). Before the final
     normalization, checks whether 1/n would underflow; if so, upcasts to
     float64 for the division step and warns.
     """
-    sum_X = None
-    sum_Y = None
-    sum_XX = None
-    sum_YY = None
-    sum_XY = None
+    it = iter(pair_iterator)
+    first = next(it, None)
+    if first is None:
+        raise ValueError("pair_iterator yielded no data")
+
+    X_batch = to_torch(first[0])
+    Y_batch = to_torch(first[1])
+    d = X_batch.shape[1]
+    sum_X = torch.zeros(d, device=DEVICE, dtype=DTYPE)
+    sum_Y = torch.zeros(d, device=DEVICE, dtype=DTYPE)
+    sum_XX = torch.zeros(d, d, device=DEVICE, dtype=DTYPE)
+    sum_YY = torch.zeros(d, d, device=DEVICE, dtype=DTYPE)
+    sum_XY = torch.zeros(d, d, device=DEVICE, dtype=DTYPE)
     n_total = 0
 
-    for X_batch, Y_batch in pair_iterator:
+    from itertools import chain
+
+    for X_batch, Y_batch in chain([(X_batch, Y_batch)], it):
         X_batch = to_torch(X_batch)
         Y_batch = to_torch(Y_batch)
         batch_n = X_batch.shape[0]
-
-        if sum_X is None:
-            d = X_batch.shape[1]
-            sum_X = torch.zeros(d, device=DEVICE, dtype=DTYPE)
-            sum_Y = torch.zeros(d, device=DEVICE, dtype=DTYPE)
-            sum_XX = torch.zeros(d, d, device=DEVICE, dtype=DTYPE)
-            sum_YY = torch.zeros(d, d, device=DEVICE, dtype=DTYPE)
-            sum_XY = torch.zeros(d, d, device=DEVICE, dtype=DTYPE)
 
         sum_X += X_batch.sum(dim=0)
         sum_Y += Y_batch.sum(dim=0)
@@ -143,9 +146,6 @@ def compute_stats_streaming(
         sum_YY += Y_batch.T @ Y_batch
         sum_XY += X_batch.T @ Y_batch
         n_total += batch_n
-
-    if n_total == 0:
-        raise ValueError("pair_iterator yielded no data")
 
     n = 2 * n_total if symmetrize else n_total
 
@@ -241,7 +241,7 @@ def compute_all_stats(
     symmetrize: bool = True,
     n_neg: int = 3,
     seed: int = 42,
-) -> Tuple[Dict[str, Any], Dict[str, torch.Tensor]]:
+) -> tuple[dict[str, Any], dict[str, torch.Tensor]]:
     """Compute positive and negative pair statistics."""
     st = compute_stats(embs, ids, id_to_group, symmetrize=symmetrize)
     X_neg, Y_neg = _compute_neg_stats(embs, ids, id_to_group, n_neg=n_neg, seed=seed)

@@ -62,10 +62,10 @@ ignore = []
 
 [tool.mypy]
 python_version = "3.11"
-warn_return_any = false
+warn_return_any = true
 warn_unused_configs = true
-disallow_untyped_defs = false
-disallow_incomplete_defs = false
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
 check_untyped_defs = true
 disallow_untyped_calls = false
 disallow_untyped_decorators = false
@@ -75,16 +75,22 @@ warn_unused_ignores = true
 warn_no_return = true
 
 [[tool.mypy.overrides]]
-module = ["triton", "triton.*", "tqdm.*", "datasets", "datasets.*", "sentence_transformers", "sentence_transformers.*"]
+module = ["triton", "triton.*", "tqdm.*", "datasets", "sentence_transformers"]
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
-module = ["litfit.stats", "litfit.datasets", "litfit.methods", "litfit.evaluation", "litfit.benchmark", "litfit.dispatch"]
-disable_error_code = ["operator", "union-attr", "return-value", "assignment", "arg-type", "index", "var-annotated"]
+module = ["litfit.triton_kernels"]
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-v --tb=short"
 filterwarnings = [
     "ignore::DeprecationWarning",
+]
+
+[dependency-groups]
+dev = [
+    "pytest-cov>=7.0.0",
 ]

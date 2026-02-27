@@ -1,4 +1,5 @@
-from typing import Any, Callable, Dict, Iterator, Optional, Tuple, Union
+from collections.abc import Callable, Iterator
+from typing import Any
 
 import torch
 from tqdm.auto import tqdm
@@ -40,15 +41,16 @@ class LazyProjectionDict:
     """
 
     def __init__(self) -> None:
-        self._closures: Dict[Tuple, Tuple[Callable, Dict[str, Any]]] = {}
+        self._closures: dict[tuple, tuple[Callable, dict[str, Any]]] = {}
 
-    def _set(self, key: Tuple, fn: Callable, st: Any, neg: Any, cfg: Dict) -> None:
+    def _set(self, key: tuple, fn: Callable, st: Any, neg: Any, cfg: dict) -> None:
         self._closures[key] = (fn, {"st": st, "neg": neg, **cfg})
 
-    def __getitem__(self, key: Tuple) -> torch.Tensor:
+    def __getitem__(self, key: tuple) -> torch.Tensor:
         fn, kwargs = self._closures[key]
         out = fn(**kwargs)
-        return out[0] if isinstance(out, tuple) else out
+        result = out[0] if isinstance(out, tuple) else out
+        return result  # type: ignore[no-any-return]
 
     def __contains__(self, key: object) -> bool:
         return key in self._closures
@@ -56,7 +58,7 @@ class LazyProjectionDict:
     def __len__(self) -> int:
         return len(self._closures)
 
-    def __iter__(self) -> Iterator[Tuple]:
+    def __iter__(self) -> Iterator[tuple]:
         return iter(self._closures)
 
     def keys(self) -> Any:
@@ -66,17 +68,17 @@ class LazyProjectionDict:
         for key in self._closures:
             yield self[key]
 
-    def items(self) -> Iterator[Tuple[Tuple, torch.Tensor]]:
+    def items(self) -> Iterator[tuple[tuple, torch.Tensor]]:
         for key in self._closures:
             yield key, self[key]
 
 
 def generate_fast_projections(
-    st: Dict,
-    neg: Optional[Dict] = None,
+    st: dict,
+    neg: dict | None = None,
     verbose: bool = True,
     lazy: bool = False,
-) -> Union[Dict[Tuple, torch.Tensor], LazyProjectionDict]:
+) -> dict[tuple, torch.Tensor] | LazyProjectionDict:
     """Generate a curated subset of ~40 projections from the top-performing methods.
 
     Covers Rayleigh, Ray→AsymRef, Ray→AsymRef→MSE, Ray→MSE→AsymRef, Ray→MSE,
@@ -85,10 +87,10 @@ def generate_fast_projections(
     ``generate_all_projections`` with minimal quality loss based on benchmarks.
     """
     _check_st(st)
-    results = {}
-    all_jobs = []
+    results: dict[tuple, torch.Tensor] = {}
+    all_jobs: list[tuple[str, Callable, dict[str, Any]]] = []
 
-    def _register(name, fn, configs, needs_neg=False):
+    def _register(name: str, fn: Callable, configs: list[dict[str, Any]], needs_neg: bool = False) -> None:
         if needs_neg and neg is None:
             return
         if needs_neg:
@@ -177,17 +179,17 @@ def generate_fast_projections(
 
 
 def generate_all_projections(
-    st: Dict,
-    neg: Optional[Dict] = None,
+    st: dict,
+    neg: dict | None = None,
     include_neg_methods: bool = True,
     verbose: bool = True,
     lazy: bool = False,
-) -> Union[Dict[Tuple, torch.Tensor], LazyProjectionDict]:
+) -> dict[tuple, torch.Tensor] | LazyProjectionDict:
     _check_st(st)
-    results = {}
-    all_jobs = []
+    results: dict[tuple, torch.Tensor] = {}
+    all_jobs: list[tuple[str, Callable, dict[str, Any]]] = []
 
-    def _register(name, fn, configs, needs_neg=False):
+    def _register(name: str, fn: Callable, configs: list[dict[str, Any]], needs_neg: bool = False) -> None:
         if needs_neg and (neg is None or not include_neg_methods):
             return
         if needs_neg:

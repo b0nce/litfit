@@ -1,6 +1,7 @@
 import random
 from collections import defaultdict
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from collections.abc import Callable
+from typing import Any
 
 import torch
 from tqdm.auto import tqdm
@@ -12,10 +13,10 @@ from .methods import m_rayleigh
 @torch.no_grad()
 def evaluate_retrieval_fast(
     embs: torch.Tensor,
-    ids: List,
-    id_to_group: Dict,
-    ks: List[int] = [1, 5, 10],
-) -> Dict[str, float]:
+    ids: list,
+    id_to_group: dict,
+    ks: list[int] = [1, 5, 10],
+) -> dict[str, float]:
     """Fully batched retrieval evaluation on GPU."""
     embs_t = to_torch(embs) if not isinstance(embs, torch.Tensor) else embs.to(DEVICE, DTYPE)
     embs_norm = _normalize(embs_t)
@@ -64,17 +65,17 @@ def evaluate_retrieval_fast(
 
 @torch.no_grad()
 def find_dim_range(
-    st: Dict,
+    st: dict,
     val_embs: torch.Tensor,
-    val_ids: List,
-    id_to_group: Dict,
+    val_ids: list,
+    id_to_group: dict,
     n_points: int = 20,
-    regs: Tuple[float, ...] = (0.005, 0.01, 0.1, 1.0),
+    regs: tuple[float, ...] = (0.005, 0.01, 0.1, 1.0),
     metric: str = 'MAP@50',
     threshold: float = 0.9,
     verbose: bool = True,
-    eval_fn: Optional[Callable] = None,
-) -> Tuple[float, ...]:
+    eval_fn: Callable | None = None,
+) -> tuple[float, ...]:
     """Scan Rayleigh projections across dimensions to find the useful range.
 
     Uses the cheapest method (Rayleigh) to quickly evaluate many dimension
@@ -165,18 +166,18 @@ def find_dim_range(
     fracs.add(1.0)
 
     # Sort and clamp
-    fracs = sorted(f for f in fracs if 0 < f <= 1.0)
+    sorted_fracs = sorted(f for f in fracs if 0 < f <= 1.0)
 
     if verbose:
         print(f'\nUseful range: dims {low}-{high} ' f'(fracs {low / d:.2f}-{high / d:.2f})')
-        print(f'Returned dim_fractions: {tuple(fracs)}')
+        print(f'Returned dim_fractions: {tuple(sorted_fracs)}')
 
-    return tuple(fracs)
+    return tuple(sorted_fracs)
 
 
 def _pick_next(
-    rng: Any, all_methods: List, method_queues: Dict, method_evaluated: Dict, method_best: Dict, explore_fraction: float
-) -> Optional[Tuple]:
+    rng: Any, all_methods: list, method_queues: dict, method_evaluated: dict, method_best: dict, explore_fraction: float
+) -> tuple | None:
     """Select next (method, n_dims) pair using explore-exploit scheduling."""
     active = [m for m in all_methods if method_queues[m]]
     if not active:
@@ -184,7 +185,8 @@ def _pick_next(
     unexplored = [m for m in active if method_evaluated[m] == 0]
     if unexplored:
         method = rng.choice(unexplored)
-        return method_queues[method].pop()
+        result: tuple = method_queues[method].pop()
+        return result
     if rng.random() < explore_fraction:
         method = rng.choice(active)
     else:
@@ -194,12 +196,13 @@ def _pick_next(
         probs = probs / probs.sum()
         probs_list = probs.tolist()
         method = active[rng.choices(range(len(active)), weights=probs_list, k=1)[0]]
-    return method_queues[method].pop()
+    result2: tuple = method_queues[method].pop()
+    return result2
 
 
-def _build_summary(results: Dict, all_methods: List, dim_tests: List, metric: str) -> Dict:
+def _build_summary(results: dict, all_methods: list, dim_tests: tuple, metric: str) -> dict:
     """Aggregate results dict into a method-level summary table."""
-    summary = {}
+    summary: dict[str, dict] = {}
     for method_name in all_methods:
         method_results = {k: v for k, v in results.items() if k[0] == method_name}
         if not method_results:
@@ -213,15 +216,15 @@ def _build_summary(results: Dict, all_methods: List, dim_tests: List, metric: st
 
 def _print_table(
     title: str,
-    summary: Dict,
-    all_W: Dict,
-    all_methods: List,
-    dim_tests: List,
-    dim_fractions: Tuple,
+    summary: dict,
+    all_W: dict,
+    all_methods: list,
+    dim_tests: tuple,
+    dim_fractions: tuple,
     d_full: int,
     metric: str,
-    method_evaluated: Dict,
-    method_keys: List,
+    method_evaluated: dict,
+    method_keys: dict,
     score_fn: Callable,
 ) -> None:
     """Print formatted ranking table to stdout."""
@@ -255,20 +258,20 @@ def _print_table(
 
 
 def evaluate_projections(
-    all_W: Dict,
+    all_W: dict,
     val_embs: torch.Tensor,
-    val_ids: List,
-    id_to_group: Dict,
-    test_embs: Optional[torch.Tensor] = None,
-    test_ids: Optional[List] = None,
-    test_id_to_group: Optional[Dict] = None,
-    dim_fractions: Tuple[float, ...] = (0.05, 0.1, 0.15, 0.2, 0.3, 0.5, 0.7, 1.0),
+    val_ids: list,
+    id_to_group: dict,
+    test_embs: torch.Tensor | None = None,
+    test_ids: list | None = None,
+    test_id_to_group: dict | None = None,
+    dim_fractions: tuple[float, ...] = (0.05, 0.1, 0.15, 0.2, 0.3, 0.5, 0.7, 1.0),
     metric: str = 'MAP@50',
     explore_fraction: float = 0.3,
     seed: int = 42,
     verbose: bool = True,
-    eval_fn: Optional[Callable] = None,
-) -> Tuple[Dict, Dict]:
+    eval_fn: Callable | None = None,
+) -> tuple[dict, dict]:
     """Evaluate projections using explore-exploit scheduling.
 
     Supports ``KeyboardInterrupt`` for early stopping.
@@ -280,13 +283,13 @@ def evaluate_projections(
 
     first_W = next(iter(all_W.values()))
     d_full = first_W.shape[1]
-    dim_tests = []
+    dim_tests_list: list[int | None] = []
     for f in dim_fractions:
         if f >= 1.0:
-            dim_tests.append(None)
+            dim_tests_list.append(None)
         else:
-            dim_tests.append(max(1, round(d_full * f)))
-    dim_tests = tuple(dim_tests)
+            dim_tests_list.append(max(1, round(d_full * f)))
+    dim_tests: tuple[int | None, ...] = tuple(dim_tests_list)
 
     method_keys = defaultdict(list)
     for key in all_W:
@@ -294,14 +297,14 @@ def evaluate_projections(
     for keys in method_keys.values():
         rng.shuffle(keys)
 
-    results = {}
-    method_best = defaultdict(float)
-    method_evaluated = defaultdict(int)
+    results: dict[tuple, dict[int | None, dict[str, float]]] = {}
+    method_best: dict[str, float] = defaultdict(float)
+    method_evaluated: dict[str, int] = defaultdict(int)
     method_queues = {name: list(keys) for name, keys in method_keys.items()}
     all_methods = list(method_keys.keys())
     total = len(all_W)
 
-    def eval_key(key):
+    def eval_key(key: tuple) -> dict[int | None, dict[str, float]]:
         W = all_W[key]
         res_by_dim = {}
         for n_dims in dim_tests:
@@ -313,8 +316,8 @@ def evaluate_projections(
         return res_by_dim
 
     pbar = tqdm(total=total, desc="Evaluating projections", disable=not verbose)
-    global_best_score = 0
-    global_best_key = None
+    global_best_score = 0.0
+    global_best_key: tuple | None = None
 
     try:
         while True:
@@ -352,8 +355,8 @@ def evaluate_projections(
 
     if verbose:
 
-        def val_score_fn(summary, method_name, n_dims):
-            return summary[method_name][n_dims][1][metric]
+        def val_score_fn(summary: dict, method_name: str, n_dims: int | None) -> float:
+            return summary[method_name][n_dims][1][metric]  # type: ignore[no-any-return]
 
         _print_table(
             "VAL SET",
@@ -372,7 +375,7 @@ def evaluate_projections(
         if test_embs_t is not None and test_ids is not None:
             _test_id_to_group = test_id_to_group if test_id_to_group is not None else id_to_group
 
-            def test_score_fn(summary, method_name, n_dims):
+            def test_score_fn(summary: dict, method_name: str, n_dims: int | None) -> float:
                 best_key = summary[method_name][n_dims][0]
                 W = all_W[best_key]
                 p = test_embs_t @ W

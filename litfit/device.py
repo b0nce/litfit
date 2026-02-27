@@ -1,5 +1,3 @@
-from typing import Union
-
 import numpy as np
 import torch
 
@@ -14,13 +12,13 @@ DEVICE = get_device()
 DTYPE = torch.float32
 
 
-def to_torch(x: Union[np.ndarray, torch.Tensor]) -> torch.Tensor:
+def to_torch(x: np.ndarray | torch.Tensor) -> torch.Tensor:
     if isinstance(x, torch.Tensor):
         return x.to(device=DEVICE, dtype=DTYPE)
-    return torch.tensor(np.asarray(x), device=DEVICE, dtype=DTYPE)
+    return torch.as_tensor(np.asarray(x), device=DEVICE).to(dtype=DTYPE)
 
 
-def to_numpy(x: Union[np.ndarray, torch.Tensor]) -> np.ndarray:
+def to_numpy(x: np.ndarray | torch.Tensor) -> np.ndarray:
     if isinstance(x, torch.Tensor):
         return x.detach().cpu().numpy()
     return np.asarray(x)
@@ -33,4 +31,5 @@ def _eye(d: int) -> torch.Tensor:
 def _normalize(x: torch.Tensor) -> torch.Tensor:
     """L2-normalize rows of x."""
     norms = x.norm(dim=1, keepdim=True).clamp(min=1e-10)
-    return x / norms
+    result: torch.Tensor = x / norms
+    return result

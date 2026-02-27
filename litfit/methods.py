@@ -1,4 +1,4 @@
-from typing import Dict, Optional, Tuple
+from typing import Any
 
 import torch
 
@@ -6,7 +6,7 @@ from .device import _eye
 from .stats import _check_neg, _check_st
 
 
-def _eigh(A: torch.Tensor, B: Optional[torch.Tensor] = None) -> Tuple[torch.Tensor, torch.Tensor]:
+def _eigh(A: torch.Tensor, B: torch.Tensor | None = None) -> tuple[torch.Tensor, torch.Tensor]:
     """Generalized symmetric eigendecomposition. If B is given, solves A v = λ B v via Cholesky factorisation."""
     if B is not None:
         L = torch.linalg.cholesky(B)
@@ -19,7 +19,7 @@ def _eigh(A: torch.Tensor, B: Optional[torch.Tensor] = None) -> Tuple[torch.Tens
     return ev, evec
 
 
-def _importance_sort(W: torch.Tensor, st: Dict) -> torch.Tensor:
+def _importance_sort(W: torch.Tensor, st: dict) -> torch.Tensor:
     """Sort columns of W by decreasing cross-covariance-to-total-variance ratio."""
     Cf = W.T @ st['Sigma_cross'] @ W
     Sf = W.T @ st['Sigma_total'] @ W
@@ -28,7 +28,7 @@ def _importance_sort(W: torch.Tensor, st: Dict) -> torch.Tensor:
     return W[:, torch.argsort(imp, descending=True)]
 
 
-def _mse_refine(W: torch.Tensor, st: Dict, reg_mse: float = 0.1) -> torch.Tensor:
+def _mse_refine(W: torch.Tensor, st: dict, reg_mse: float = 0.1) -> torch.Tensor:
     """MSE refinement step: rotate W to align with cross-covariance in the projected subspace."""
     k = W.shape[1]
     Sp = W.T @ st['Sigma_total'] @ W
@@ -40,7 +40,7 @@ def _mse_refine(W: torch.Tensor, st: Dict, reg_mse: float = 0.1) -> torch.Tensor
 
 def _asym_refine(
     W: torch.Tensor,
-    st: Dict,
+    st: dict,
     reg_refine: float = 0.1,
     max_iter: int = 20,
     tol: float = 1e-8,
@@ -66,39 +66,41 @@ def _asym_refine(
     return _importance_sort(W @ M, st)
 
 
-def m_rayleigh(st: Dict, neg: Optional[Dict] = None, reg: float = 0.1, **kw) -> torch.Tensor:
+def m_rayleigh(st: dict, neg: dict | None = None, reg: float = 0.1, **kw: Any) -> torch.Tensor:
     _check_st(st)
     d = st['Sigma_total'].shape[0]
     ev, evec = _eigh(st['Sigma_cross'], st['Sigma_total'] + reg * _eye(d))
     return evec[:, torch.argsort(ev, descending=True)]
 
 
-def m_mse(st: Dict, neg: Optional[Dict] = None, reg: float = 0.01, **kw) -> torch.Tensor:
+def m_mse(st: dict, neg: dict | None = None, reg: float = 0.01, **kw: Any) -> torch.Tensor:
     _check_st(st)
     d = st['Sigma_total'].shape[0]
-    return torch.linalg.solve(st['Sigma_total'] + reg * _eye(d), st['Sigma_cross'])
+    W: torch.Tensor = torch.linalg.solve(st['Sigma_total'] + reg * _eye(d), st['Sigma_cross'])
+    return W
 
 
-def m_ray_mse(st: Dict, neg: Optional[Dict] = None, reg: float = 0.01, reg_mse: float = 0.1, **kw) -> torch.Tensor:
+def m_ray_mse(st: dict, neg: dict | None = None, reg: float = 0.01, reg_mse: float = 0.1, **kw: Any) -> torch.Tensor:
     _check_st(st)
     W = m_rayleigh(st, reg=reg)
     return _mse_refine(W, st, reg_mse=reg_mse)
 
 
 def m_asym_rayleigh(
-    st: Dict,
-    neg: Optional[Dict] = None,
+    st: dict,
+    neg: dict | None = None,
     reg: float = 0.1,
     max_iter: int = 20,
     tol: float = 1e-8,
-    **kw,
+    **kw: Any,
 ) -> torch.Tensor:
     _check_st(st)
     SXX, SYY = st['Sigma_XX'], st['Sigma_YY']
     S_cross = st['Sigma_cross']
     d = SXX.shape[0]
     gamma = 1.0
-    W = None
+    ev, evec = _eigh(S_cross, SXX + SYY + reg * _eye(d))
+    W = evec[:, torch.argsort(ev, descending=True)]
     for _ in range(max_iter):
         S_denom = gamma * SXX + SYY + reg * _eye(d)
         ev, evec = _eigh(S_cross, S_denom)
@@ -113,11 +115,11 @@ def m_asym_rayleigh(
 
 
 def m_asym_ray_mse(
-    st: Dict,
-    neg: Optional[Dict] = None,
+    st: dict,
+    neg: dict | None = None,
     reg: float = 0.1,
     reg_mse: float = 0.1,
-    **kw,
+    **kw: Any,
 ) -> torch.Tensor:
     _check_st(st)
     W = m_asym_rayleigh(st, reg=reg)
@@ -125,11 +127,11 @@ def m_asym_ray_mse(
 
 
 def m_ray_asym_refine(
-    st: Dict,
-    neg: Optional[Dict] = None,
+    st: dict,
+    neg: dict | None = None,
     reg: float = 0.1,
     reg_refine: float = 0.1,
-    **kw,
+    **kw: Any,
 ) -> torch.Tensor:
     _check_st(st)
     W = m_rayleigh(st, reg=reg)
@@ -137,12 +139,12 @@ def m_ray_asym_refine(
 
 
 def m_ray_mse_asym_refine(
-    st: Dict,
-    neg: Optional[Dict] = None,
+    st: dict,
+    neg: dict | None = None,
     reg: float = 0.01,
     reg_mse: float = 0.1,
     reg_refine: float = 0.1,
-    **kw,
+    **kw: Any,
 ) -> torch.Tensor:
     _check_st(st)
     W = m_rayleigh(st, reg=reg)
@@ -151,12 +153,12 @@ def m_ray_mse_asym_refine(
 
 
 def m_ray_asym_refine_mse(
-    st: Dict,
-    neg: Optional[Dict] = None,
+    st: dict,
+    neg: dict | None = None,
     reg: float = 0.1,
     reg_refine: float = 0.1,
     reg_mse: float = 0.1,
-    **kw,
+    **kw: Any,
 ) -> torch.Tensor:
     _check_st(st)
     W = m_rayleigh(st, reg=reg)
@@ -165,13 +167,13 @@ def m_ray_asym_refine_mse(
 
 
 def m_ray_iterate(
-    st: Dict,
-    neg: Optional[Dict] = None,
+    st: dict,
+    neg: dict | None = None,
     reg: float = 0.1,
     reg_mse: float = 0.1,
     reg_refine: float = 0.1,
     n_rounds: int = 3,
-    **kw,
+    **kw: Any,
 ) -> torch.Tensor:
     _check_st(st)
     W = m_rayleigh(st, reg=reg)
@@ -182,12 +184,12 @@ def m_ray_iterate(
 
 
 def m_split_rank_ray(
-    st: Dict,
-    neg: Optional[Dict] = None,
+    st: dict,
+    neg: dict | None = None,
     frac_cross: float = 0.5,
     frac_total: float = 0.5,
     reg: float = 0.01,
-    **kw,
+    **kw: Any,
 ) -> torch.Tensor:
     _check_st(st)
     S_cross = st['Sigma_cross']
@@ -210,13 +212,13 @@ def m_split_rank_ray(
 
 
 def m_split_rank_ray_mse(
-    st: Dict,
-    neg: Optional[Dict] = None,
+    st: dict,
+    neg: dict | None = None,
     frac_cross: float = 0.5,
     frac_total: float = 0.5,
     reg: float = 0.01,
     reg_mse: float = 0.1,
-    **kw,
+    **kw: Any,
 ) -> torch.Tensor:
     _check_st(st)
     W = m_split_rank_ray(st, frac_cross=frac_cross, frac_total=frac_total, reg=reg)
@@ -224,15 +226,15 @@ def m_split_rank_ray_mse(
 
 
 def m_split_rank_ray_iterate(
-    st: Dict,
-    neg: Optional[Dict] = None,
+    st: dict,
+    neg: dict | None = None,
     frac_cross: float = 0.5,
     frac_total: float = 0.5,
     reg: float = 0.01,
     reg_mse: float = 0.1,
     reg_refine: float = 0.1,
     n_rounds: int = 3,
-    **kw,
+    **kw: Any,
 ) -> torch.Tensor:
     _check_st(st)
     W = m_split_rank_ray(st, frac_cross=frac_cross, frac_total=frac_total, reg=reg)
@@ -249,8 +251,8 @@ def _uber_core(
     alpha: float,
     reg: float,
     frac_low: float,
-    Sigma_solve: Optional[torch.Tensor] = None,
-) -> Tuple[torch.Tensor, torch.Tensor]:
+    Sigma_solve: torch.Tensor | None = None,
+) -> tuple[torch.Tensor, torch.Tensor]:
     d = XTX_p.shape[0]
     d_low = max(1, round(d * frac_low))
     s1 = XTX_p.abs().mean()
@@ -281,20 +283,20 @@ def _uber_core(
 
 
 def m_uber(
-    st: Dict,
-    neg: Optional[Dict] = None,
+    st: dict,
+    neg: dict | None = None,
     alpha: float = 0.0,
     reg: float = 1e-4,
     frac_low: float = 0.33,
-    **kw,
-) -> Tuple[torch.Tensor, torch.Tensor]:
+    **kw: Any,
+) -> tuple[torch.Tensor, torch.Tensor]:
     _check_st(st)
     return _uber_core(st['Sigma_total'], st['Sigma_cross'], st['X_mean'], alpha, reg, frac_low)
 
 
 def _ray_contr_evd(
-    st: Dict,
-    neg: Dict,
+    st: dict,
+    neg: dict,
     reg: float,
     alpha: float,
     beta: float,
@@ -308,32 +310,34 @@ def _ray_contr_evd(
 
 
 def m_ray_contr_mse(
-    st: Dict,
-    neg: Optional[Dict] = None,
+    st: dict,
+    neg: dict | None = None,
     reg: float = 0.01,
     alpha: float = 0.1,
     beta: float = 0.1,
     reg_mse: float = 0.1,
-    **kw,
+    **kw: Any,
 ) -> torch.Tensor:
     _check_st(st)
     _check_neg(neg)
+    assert neg is not None
     W = _ray_contr_evd(st, neg, reg, alpha, beta)
     return _mse_refine(W, st, reg_mse=reg_mse)
 
 
 def m_ray_contr_mse_neg(
-    st: Dict,
-    neg: Optional[Dict] = None,
+    st: dict,
+    neg: dict | None = None,
     reg: float = 0.01,
     alpha: float = 0.1,
     beta: float = 0.1,
     alpha_mse: float = 0.1,
     reg_mse: float = 0.1,
-    **kw,
+    **kw: Any,
 ) -> torch.Tensor:
     _check_st(st)
     _check_neg(neg)
+    assert neg is not None
     W = _ray_contr_evd(st, neg, reg, alpha, beta)
     k = W.shape[1]
     Sp = W.T @ st['Sigma_total'] @ W
@@ -345,15 +349,16 @@ def m_ray_contr_mse_neg(
 
 
 def m_resid_guided(
-    st: Dict,
-    neg: Optional[Dict] = None,
+    st: dict,
+    neg: dict | None = None,
     reg: float = 0.01,
     gamma: float = 0.3,
     reg_mse: float = 0.1,
-    **kw,
+    **kw: Any,
 ) -> torch.Tensor:
     _check_st(st)
     _check_neg(neg)
+    assert neg is not None
     d = st['Sigma_total'].shape[0]
     Sr = st['Sigma_total'] - st['Sigma_cross'] + reg * _eye(d)
     L = torch.linalg.cholesky(Sr)
@@ -369,32 +374,34 @@ def m_resid_guided(
 
 
 def m_uber_neg(
-    st: Dict,
-    neg: Optional[Dict] = None,
+    st: dict,
+    neg: dict | None = None,
     alpha: float = 0.0,
     reg: float = 1e-4,
     frac_low: float = 0.33,
     beta_neg: float = 0.1,
-    **kw,
-) -> Tuple[torch.Tensor, torch.Tensor]:
+    **kw: Any,
+) -> tuple[torch.Tensor, torch.Tensor]:
     _check_st(st)
     _check_neg(neg)
+    assert neg is not None
     XTX_p = st['Sigma_total'] + beta_neg * neg['Sigma_cross_neg']
     return _uber_core(XTX_p, st['Sigma_cross'], st['X_mean'], alpha, reg, frac_low, Sigma_solve=st['Sigma_total'])
 
 
 def m_uber_contr(
-    st: Dict,
-    neg: Optional[Dict] = None,
+    st: dict,
+    neg: dict | None = None,
     alpha: float = 0.0,
     reg: float = 1e-4,
     frac_low: float = 0.33,
     alpha_neg: float = 0.1,
     beta_neg: float = 0.1,
-    **kw,
-) -> Tuple[torch.Tensor, torch.Tensor]:
+    **kw: Any,
+) -> tuple[torch.Tensor, torch.Tensor]:
     _check_st(st)
     _check_neg(neg)
+    assert neg is not None
     XTX_p = st['Sigma_total'] + beta_neg * neg['Sigma_cross_neg']
     XTY_p = st['Sigma_cross'] - alpha_neg * neg['Sigma_cross_neg']
     return _uber_core(XTX_p, XTY_p, st['X_mean'], alpha, reg, frac_low, Sigma_solve=st['Sigma_total'])
