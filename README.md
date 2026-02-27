@@ -133,7 +133,15 @@ W = all_W[best_key]                # shape (d, d) or (d, k)
 best_dim = 128
 projected = test_embs @ W[:, :best_dim]  # shape (n, best_dim)
 
-# --- 7. Export as torch.nn.Linear for inference ---
+# --- 7. (Optional) Recompute stats on ALL data for best performance ---
+# The train split was used for fitting and val/test for model selection.
+# Once you've picked the best config, recompute stats on all available
+# embeddings so the final projection sees the most signal.
+full_st = compute_stats(embs, all_ids, id_to_group)
+all_W_full = generate_fast_projections(full_st, verbose=False)
+W = all_W_full[best_key]
+
+# --- 8. Export as torch.nn.Linear for inference ---
 out_dim = best_dim             # or W.shape[1] for full
 layer = nn.Linear(W.shape[0], out_dim, bias=False)
 layer.weight = nn.Parameter(W[:, :out_dim].T.cpu().float())
