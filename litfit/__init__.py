@@ -1,29 +1,29 @@
-from .device import get_device, DEVICE, DTYPE, to_torch, to_numpy
-from .stats import compute_stats, compute_stats_streaming, compute_all_stats
+from .benchmark import DATASETS, MODELS, run_benchmark
+from .datasets import encode_texts, load_askubuntu, load_quora, load_twitter_url, split_data
+from .device import DEVICE, DTYPE, get_device, to_numpy, to_torch
+from .dispatch import LazyProjectionDict, generate_all_projections, generate_fast_projections
+from .evaluation import evaluate_projections, evaluate_retrieval_fast, find_dim_range
 from .methods import (
-    m_rayleigh,
-    m_mse,
-    m_ray_mse,
-    m_asym_rayleigh,
     m_asym_ray_mse,
+    m_asym_rayleigh,
+    m_mse,
     m_ray_asym_refine,
-    m_ray_mse_asym_refine,
     m_ray_asym_refine_mse,
-    m_ray_iterate,
-    m_split_rank_ray,
-    m_split_rank_ray_mse,
-    m_split_rank_ray_iterate,
-    m_uber,
     m_ray_contr_mse,
     m_ray_contr_mse_neg,
+    m_ray_iterate,
+    m_ray_mse,
+    m_ray_mse_asym_refine,
+    m_rayleigh,
     m_resid_guided,
-    m_uber_neg,
+    m_split_rank_ray,
+    m_split_rank_ray_iterate,
+    m_split_rank_ray_mse,
+    m_uber,
     m_uber_contr,
+    m_uber_neg,
 )
-from .dispatch import generate_all_projections, generate_fast_projections, LazyProjectionDict
-from .evaluation import evaluate_retrieval_fast, find_dim_range, evaluate_projections
-from .datasets import load_askubuntu, load_twitter_url, load_quora, encode_texts, split_data
-from .benchmark import DATASETS, MODELS, run_benchmark
+from .stats import compute_all_stats, compute_stats, compute_stats_streaming
 
 __all__ = [
     "get_device",

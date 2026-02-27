@@ -331,9 +331,7 @@ def weighted_outer_products(
         accumulate: if True, adds to existing output; if False, overwrites.
     """
     if not (X.shape[-1] == Y.shape[-1] == w.shape[0]):
-        raise ValueError(
-            f"Shape mismatch: X.shape[-1]={X.shape[-1]}, Y.shape[-1]={Y.shape[-1]}, w.shape[0]={w.shape[0]} must be equal"
-        )
+        raise ValueError(f"Shape mismatch: X[-1]={X.shape[-1]}, Y[-1]={Y.shape[-1]}, w[0]={w.shape[0]} must be equal")
     Mx, K = X.shape[-2], X.shape[-1]
     My = Y.shape[-2]
     M_total = Mx + My
@@ -348,9 +346,8 @@ def weighted_outer_products(
         xty_tmp = XTY_out
         yty_tmp = YTY_out
 
-    grid = lambda meta: (
-        batch * triton.cdiv(M_total, meta["BLOCK_SIZE_M"]) * triton.cdiv(M_total, meta["BLOCK_SIZE_N"]),
-    )
+    def grid(meta):
+        return (batch * triton.cdiv(M_total, meta["BLOCK_SIZE_M"]) * triton.cdiv(M_total, meta["BLOCK_SIZE_N"]),)
 
     fused_weighted_outer_kernel[grid](
         X_ptr=X,

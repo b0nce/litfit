@@ -5,15 +5,15 @@ import torch
 
 from litfit.device import DEVICE, DTYPE
 from litfit.methods import (
-    m_rayleigh,
-    m_mse,
-    m_ray_mse,
     m_asym_rayleigh,
-    m_uber,
+    m_mse,
     m_ray_contr_mse,
     m_ray_contr_mse_neg,
+    m_ray_mse,
+    m_rayleigh,
+    m_uber,
 )
-from litfit.stats import compute_stats, compute_all_stats
+from litfit.stats import compute_all_stats, compute_stats
 
 
 @pytest.fixture

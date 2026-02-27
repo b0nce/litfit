@@ -1,13 +1,13 @@
 import time
 import warnings
 
-warnings.filterwarnings("ignore")
-
-from .datasets import load_askubuntu, load_quora, encode_texts, split_data
-from .stats import compute_stats, compute_all_stats
-from .dispatch import generate_all_projections
-from .evaluation import evaluate_retrieval_fast, evaluate_projections, find_dim_range
+from .datasets import encode_texts, load_askubuntu, split_data
 from .device import DEVICE
+from .dispatch import generate_all_projections
+from .evaluation import evaluate_projections, evaluate_retrieval_fast, find_dim_range
+from .stats import compute_all_stats, compute_stats
+
+warnings.filterwarnings("ignore")
 
 DATASETS = {
     'AskUbuntu': load_askubuntu,
@@ -64,10 +64,10 @@ def run_benchmark(
             val_ids, _, val_embs, _ = data['val']
             test_ids, _, test_embs, _ = data['test']
 
-            print(f"\n  Baseline (val):  ", end="")
+            print("\n  Baseline (val):  ", end="")
             bl_val = evaluate_retrieval_fast(val_embs, val_ids, id_to_group)
             print(f"MAP={bl_val['MAP@50']:.4f}")
-            print(f"  Baseline (test): ", end="")
+            print("  Baseline (test): ", end="")
             bl_test = evaluate_retrieval_fast(test_embs, test_ids, id_to_group)
             print(f"MAP={bl_test['MAP@50']:.4f}")
 
@@ -144,7 +144,7 @@ def _print_top_configs(
     top_k: int = 10,
 ):
     """Print the top projection configs with improvement over baseline."""
-    from .device import to_torch, DTYPE, DEVICE
+    from .device import to_torch
     from .evaluation import evaluate_retrieval_fast
 
     val_base = bl_val[metric]

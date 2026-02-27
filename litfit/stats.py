@@ -4,7 +4,7 @@ from typing import Any, Dict, Iterable, Optional, Tuple
 
 import torch
 
-from .device import to_torch, DEVICE, DTYPE, _normalize
+from .device import DEVICE, DTYPE, _normalize, to_torch
 
 
 def _try_triton_stats(
@@ -210,7 +210,6 @@ def _compute_neg_stats(
     import numpy as np
 
     embs_t = to_torch(embs)
-    rng = np.random.RandomState(seed)
 
     g2i = defaultdict(list)
     for i, qid in enumerate(ids):

@@ -3,28 +3,28 @@ from typing import Any, Callable, Dict, Iterator, Optional, Tuple, Union
 import torch
 from tqdm.auto import tqdm
 
-from .stats import _check_st, _check_neg
+from .device import DEVICE
 from .methods import (
-    m_rayleigh,
-    m_mse,
-    m_ray_mse,
-    m_asym_rayleigh,
     m_asym_ray_mse,
+    m_asym_rayleigh,
+    m_mse,
     m_ray_asym_refine,
-    m_ray_mse_asym_refine,
     m_ray_asym_refine_mse,
-    m_ray_iterate,
-    m_split_rank_ray,
-    m_split_rank_ray_mse,
-    m_split_rank_ray_iterate,
-    m_uber,
     m_ray_contr_mse,
     m_ray_contr_mse_neg,
+    m_ray_iterate,
+    m_ray_mse,
+    m_ray_mse_asym_refine,
+    m_rayleigh,
     m_resid_guided,
-    m_uber_neg,
+    m_split_rank_ray,
+    m_split_rank_ray_iterate,
+    m_split_rank_ray_mse,
+    m_uber,
     m_uber_contr,
+    m_uber_neg,
 )
-from .device import DEVICE
+from .stats import _check_neg, _check_st
 
 _REGS = [0.01, 0.1, 1.0, 5.0]
 _REGS_SHORT = [0.01, 0.1, 1.0]

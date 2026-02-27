@@ -5,7 +5,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 import torch
 from tqdm.auto import tqdm
 
-from .device import to_torch, _normalize, DEVICE, DTYPE
+from .device import DEVICE, DTYPE, _normalize, to_torch
 from .methods import m_rayleigh
 
 
@@ -315,7 +315,6 @@ def evaluate_projections(
     pbar = tqdm(total=total, desc="Evaluating projections", disable=not verbose)
     global_best_score = 0
     global_best_key = None
-    interrupted = False
 
     try:
         while True:
@@ -344,7 +343,6 @@ def evaluate_projections(
             pbar.update(1)
 
     except KeyboardInterrupt:
-        interrupted = True
         if verbose:
             print(f"\n\nInterrupted! Evaluated {len(results)}/{total} projections.")
 

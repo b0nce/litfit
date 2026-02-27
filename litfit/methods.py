@@ -2,8 +2,8 @@ from typing import Dict, Optional, Tuple
 
 import torch
 
-from .device import DEVICE, DTYPE, _eye
-from .stats import _check_st, _check_neg
+from .device import _eye
+from .stats import _check_neg, _check_st
 
 
 def _eigh(A: torch.Tensor, B: Optional[torch.Tensor] = None) -> Tuple[torch.Tensor, torch.Tensor]:
