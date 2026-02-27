@@ -5,7 +5,13 @@
 ## Installation
 
 ```bash
-pip install -e .
+pip install litfit
+```
+
+For an editable (development) install:
+
+```bash
+pip install -e ".[dev]"
 ```
 
 For faster statistics computation on CUDA GPUs:
