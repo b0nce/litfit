@@ -23,8 +23,8 @@ litfit takes a different approach: given pairs of items that should be similar (
 |---|---|---|---|---|---|---|
 | Fashion retrieval | SigLIP2-SO400M | baseline | 0.833 | 0.532 | 1152 | — |
 | (DeepFashion In-Shop) | | + litfit | **0.923** | **0.738** | 228 | 37s |
-| Duplicate detection | e5-base-v2 | baseline | 0.522 | 0.488 | 768 | — |
-| (AskUbuntu) | | + litfit | **0.591** | **0.573** | 768 | ~3min |
+| Duplicate detection | e5-base-v2 | baseline | 0.556 | 0.522 | 768 | — |
+| (AskUbuntu) | | + litfit | **0.598** | **0.590** | 294 | ~3min |
 
 *Embeddings precomputed. DeepFashion In-Shop uses fast mode (~40 configs); AskUbuntu uses full sweep (~860 projections). Closed-form solution means you can safely merge val into training data without risk of overfitting — typically adds a fraction of a second.*
 

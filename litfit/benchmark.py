@@ -117,6 +117,7 @@ def run_benchmark(
                     test_ids=test_ids,
                     dim_fractions=dim_fractions_run,
                     metric='MAP@50',
+                    seed=seed,
                 )
             except KeyboardInterrupt:
                 print("  Interrupted, saving partial results...")
