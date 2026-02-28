@@ -7,6 +7,31 @@
 
 **litfit** /lɪt fɪt/ — the shortest path from someone else's embedding to your task.
 
+## Why litfit?
+
+Fine-tuning dense embedding models means writing a training loop, picking a loss function, tuning a learning rate, and waiting minutes to hours — whether you're working with text, images, or multimodal embeddings.
+litfit takes a different approach: given pairs of items that should be similar (duplicates, relevant matches, same-class images), it computes covariance statistics and solves for the optimal linear projection in closed form. No gradient descent, no hyperparameters to babysit.
+
+**What you get:**
+- **Fast** — one pass over your pairs to collect statistics, then everything is solved in closed form. No iterative training = fast.
+- **Any dense embeddings** — text, vision, multimodal. If it outputs a vector, litfit can probably improve it.
+- **Simple** — pass in embeddings + pair labels, get a well-tuned projection matrix back.
+
+### Benchmarks
+
+| Task | Model | | R@1 | MAP@50 | Dims | Time (CPU) |
+|---|---|---|---|---|---|---|
+| Fashion retrieval | SigLIP2-SO400M | baseline | 0.833 | 0.532 | 1152 | — |
+| (DeepFashion In-Shop) | | + litfit | **0.923** | **0.738** | 228 | 37s |
+| Duplicate detection | e5-base-v2 | baseline | 0.522 | 0.488 | 768 | — |
+| (AskUbuntu) | | + litfit | **0.591** | **0.573** | 768 | ~3min |
+
+*Embeddings precomputed. DeepFashion In-Shop uses fast mode (~40 configs); AskUbuntu uses full sweep (~860 projections). Closed-form solution means you can safely merge val into training data without risk of overfitting — typically adds a fraction of a second.*
+
+Try it yourself — no setup needed [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/b0nce/litfit/blob/main/notebooks/quickstart.ipynb)
+
+More benchmarks welcome — if you run litfit on your dataset, open an issue or PR with results!
+
 ## Installation
 
 ```bash
@@ -167,6 +192,15 @@ See the [docs](docs/) for [more examples](docs/examples.md), [architecture diagr
 - **CUDA**: Full support with optional Triton acceleration
 - **CPU**: Full support
 - **MPS**: Not supported (missing linalg ops)
+
+## How it works
+
+1. You provide embeddings and group labels (which items are duplicates/relevant/same-class)
+2. litfit computes covariance matrices from all positive pairs (the "sufficient statistics")
+3. It generates ~40 candidate projections in fast mode, or 800+ in full sweep, using different methods (generalized Rayleigh quotients, CCA-style decompositions, asymmetric refinements, MSE regularization)
+5. You get a projection matrix `W` — multiply your embeddings by it and you're done
+
+The result is a linear transformation that can also reduce dimensionality: a 1152-dim SigLIP embedding projected to 228 dims can score *better* than the original on your task.
 
 ## Development
 

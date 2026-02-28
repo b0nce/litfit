@@ -36,7 +36,7 @@ class UnionFind:
 def _subsample_groups(
     groups: dict[Any, list],
     id_to_text: dict[Any, str],
-    max_groups: int,
+    max_groups: int | None,
     max_per_group: int,
     seed: int,
     label: str,
@@ -44,7 +44,8 @@ def _subsample_groups(
     rng = random.Random(seed)
     group_ids = list(groups.keys())
     rng.shuffle(group_ids)
-    group_ids = group_ids[:max_groups]
+    if max_groups is not None:
+        group_ids = group_ids[:max_groups]
 
     all_ids, all_texts, id_to_group = [], [], {}
     for gid in group_ids:
@@ -58,7 +59,7 @@ def _subsample_groups(
 
 
 def load_askubuntu(
-    max_groups: int = 2000,
+    max_groups: int | None = 2000,
     max_per_group: int = 6,
     seed: int = 42,
 ) -> tuple[list, list[str], dict]:
@@ -103,7 +104,7 @@ def load_askubuntu(
 
 
 def load_twitter_url(
-    max_groups: int = 2000,
+    max_groups: int | None = 2000,
     max_per_group: int = 6,
     seed: int = 42,
 ) -> tuple[list, list[str], dict]:
@@ -137,7 +138,7 @@ def load_twitter_url(
 
 
 def load_quora(
-    max_groups: int = 2000,
+    max_groups: int | None = 2000,
     max_per_group: int = 6,
     seed: int = 42,
 ) -> tuple[list, list[str], dict]:

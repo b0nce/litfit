@@ -1,4 +1,4 @@
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterator, Mapping
 from typing import Any
 
 import torch
@@ -31,7 +31,7 @@ _REGS = [0.01, 0.1, 1.0, 5.0]
 _REGS_SHORT = [0.01, 0.1, 1.0]
 
 
-class LazyProjectionDict:
+class LazyProjectionDict(Mapping[tuple, torch.Tensor]):
     """Dict-like container that computes projection matrices on demand.
 
     Stores closures instead of computed matrices so that only one projection
@@ -60,17 +60,6 @@ class LazyProjectionDict:
 
     def __iter__(self) -> Iterator[tuple]:
         return iter(self._closures)
-
-    def keys(self) -> Any:
-        return self._closures.keys()
-
-    def values(self) -> Iterator[torch.Tensor]:
-        for key in self._closures:
-            yield self[key]
-
-    def items(self) -> Iterator[tuple[tuple, torch.Tensor]]:
-        for key in self._closures:
-            yield key, self[key]
 
 
 def generate_fast_projections(
