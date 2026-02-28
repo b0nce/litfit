@@ -107,7 +107,8 @@ def find_dim_range(
 
     # Evaluate each (reg, dim) combo, pick best reg per dim
     best_scores = {}
-    for dim in dims:
+    pbar = tqdm(dims, desc="Scanning dimensions", disable=not verbose)
+    for dim in pbar:
         best = -1.0
         for r in regs:
             W = Ws[r]
@@ -116,6 +117,8 @@ def find_dim_range(
             if sc > best:
                 best = sc
         best_scores[dim] = best
+        pbar.set_postfix_str(f"dim={dim}, {metric}={best:.4f}")
+    pbar.close()
 
     peak_score = max(best_scores.values())
     delta = peak_score - base_score
